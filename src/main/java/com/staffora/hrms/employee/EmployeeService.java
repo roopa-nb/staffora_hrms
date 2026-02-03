@@ -121,9 +121,18 @@ public class EmployeeService {
 
     public List<Employee> getMyEmployees() {
         Long companyId = requireCompanyId();
-        Company company = companyRepository.findById(companyId)
-                .orElseThrow(() -> new IllegalStateException("Company not found."));
-        return employeeRepository.findByCompany(company);
+        return employeeRepository.findAllByCompanyId(companyId);
+    }
+
+    public void deleteEmployee(Long employeeId, Authentication authentication) {
+        Long companyId = requireCompanyId();
+        if (hasAnyRole(authentication, Role.EMPLOYEE)) {
+            throw new IllegalStateException("Employees cannot delete employees.");
+        }
+
+        Employee employee = employeeRepository.findByIdAndCompanyId(employeeId, companyId)
+                .orElseThrow(() -> new IllegalStateException("Employee not found."));
+        employeeRepository.delete(employee);
     }
 
     private Department resolveDepartment(Long departmentId, Long companyId) {

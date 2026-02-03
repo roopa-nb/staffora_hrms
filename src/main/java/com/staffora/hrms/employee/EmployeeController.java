@@ -37,6 +37,13 @@ public class EmployeeController {
         return employeeService.updateEmployee(employeeId, request);
     }
 
+    @DeleteMapping("/{employeeId}")
+    @PreAuthorize("hasRole('HR')")
+    public void deleteEmployee(@PathVariable Long employeeId,
+                               Authentication authentication) {
+        employeeService.deleteEmployee(employeeId, authentication);
+    }
+
     @GetMapping("/{employeeId}")
     @PreAuthorize("hasAnyRole('HR','COMPANY_ADMIN','SUPER_ADMIN','EMPLOYEE')")
     public EmployeeResponse getEmployee(@PathVariable Long employeeId,
