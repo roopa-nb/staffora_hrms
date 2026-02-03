@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 
 @Service
 public class EmployeeService {
@@ -116,6 +117,22 @@ public class EmployeeService {
         }
 
         throw new IllegalStateException("Access denied.");
+    }
+
+    public List<Employee> getMyEmployees() {
+        Long companyId = requireCompanyId();
+        return employeeRepository.findAllByCompanyId(companyId);
+    }
+
+    public void deleteEmployee(Long employeeId, Authentication authentication) {
+        Long companyId = requireCompanyId();
+        if (hasAnyRole(authentication, Role.EMPLOYEE)) {
+            throw new IllegalStateException("Employees cannot delete employees.");
+        }
+
+        Employee employee = employeeRepository.findByIdAndCompanyId(employeeId, companyId)
+                .orElseThrow(() -> new IllegalStateException("Employee not found."));
+        employeeRepository.delete(employee);
     }
 
     private Department resolveDepartment(Long departmentId, Long companyId) {
