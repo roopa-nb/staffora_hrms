@@ -2,6 +2,7 @@ package com.staffora.hrms.employee;
 
 import com.staffora.hrms.company.Company;
 import com.staffora.hrms.department.Department;
+import com.staffora.hrms.user.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,4 +48,7 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
+
+    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY)
+    private User user;
 }

@@ -13,6 +13,11 @@ import com.staffora.hrms.user.User;
 import com.staffora.hrms.user.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,15 +29,19 @@ public class EmployeeService {
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            CompanyRepository companyRepository,
                            DepartmentRepository departmentRepository,
+                           UserRepository userRepository,
+                           PasswordEncoder passwordEncoder) {
                            UserRepository userRepository) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public EmployeeResponse createEmployee(EmployeeRequest request) {
@@ -72,6 +81,7 @@ public class EmployeeService {
         }
 
         if (request.getEmail() != null) {
+            updateEmployeeEmail(employee, request.getEmail(), companyId);
             employee.setEmail(request.getEmail());
         }
 
@@ -119,6 +129,42 @@ public class EmployeeService {
         throw new IllegalStateException("Access denied.");
     }
 
+    public EmployeeResponse getMyProfile(Authentication authentication) {
+        Long companyId = requireCompanyId();
+        User user = userRepository.findByIdAndCompanyId((Long) authentication.getPrincipal(), companyId)
+                .orElseThrow(() -> new IllegalStateException("User not found."));
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new IllegalStateException("Employee profile not found.");
+        }
+        return toResponse(employee);
+    }
+
+    public EmployeeResponse updateMyProfile(EmployeeUpdateRequest request, Authentication authentication) {
+        Long companyId = requireCompanyId();
+        User user = userRepository.findByIdAndCompanyId((Long) authentication.getPrincipal(), companyId)
+                .orElseThrow(() -> new IllegalStateException("User not found."));
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new IllegalStateException("Employee profile not found.");
+        }
+
+        if (request.getFullName() != null) {
+            employee.setFullName(request.getFullName());
+        }
+
+        if (request.getEmail() != null) {
+            updateEmployeeEmail(employee, request.getEmail(), companyId);
+        }
+
+        if (request.getPhone() != null) {
+            employee.setPhone(request.getPhone());
+        }
+
+        Employee saved = employeeRepository.save(employee);
+        return toResponse(saved);
+    }
+
     public List<Employee> getMyEmployees() {
         Long companyId = requireCompanyId();
         return employeeRepository.findAllByCompanyId(companyId);
@@ -133,6 +179,38 @@ public class EmployeeService {
         Employee employee = employeeRepository.findByIdAndCompanyId(employeeId, companyId)
                 .orElseThrow(() -> new IllegalStateException("Employee not found."));
         employeeRepository.delete(employee);
+    }
+
+    public String enableLogin(Long employeeId) {
+        Long companyId = requireCompanyId();
+
+        Employee employee = employeeRepository.findByIdAndCompanyId(employeeId, companyId)
+                .orElseThrow(() -> new IllegalStateException("Employee not found."));
+
+        if (employee.getUser() != null) {
+            throw new IllegalStateException("Employee login already enabled.");
+        }
+
+        if (userRepository.findByEmailAndCompanyId(employee.getEmail(), companyId).isPresent()) {
+            throw new IllegalStateException("Email is already in use.");
+        }
+
+        String temporaryPassword = generateTemporaryPassword();
+
+        User user = User.builder()
+                .email(employee.getEmail())
+                .fullName(employee.getFullName())
+                .password(passwordEncoder.encode(temporaryPassword))
+                .role(Role.EMPLOYEE)
+                .company(employee.getCompany())
+                .employee(employee)
+                .build();
+
+        userRepository.save(user);
+        employee.setUser(user);
+        employeeRepository.save(employee);
+
+        return temporaryPassword;
     }
 
     private Department resolveDepartment(Long departmentId, Long companyId) {
@@ -168,6 +246,22 @@ public class EmployeeService {
                 .departmentId(employee.getDepartment() == null ? null : employee.getDepartment().getId())
                 .departmentName(employee.getDepartment() == null ? null : employee.getDepartment().getName())
                 .build();
+    }
+
+    private void updateEmployeeEmail(Employee employee, String email, Long companyId) {
+        User existing = userRepository.findByEmailAndCompanyId(email, companyId).orElse(null);
+        if (existing != null && (employee.getUser() == null || !existing.getId().equals(employee.getUser().getId()))) {
+            throw new IllegalStateException("Email is already in use.");
+        }
+        employee.setEmail(email);
+        if (employee.getUser() != null) {
+            employee.getUser().setEmail(email);
+            userRepository.save(employee.getUser());
+        }
+    }
+
+    private String generateTemporaryPassword() {
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
 
     private Long requireCompanyId() {

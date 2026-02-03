@@ -1,6 +1,7 @@
 package com.staffora.hrms.employee;
 
 import com.staffora.hrms.employee.dto.EmployeeRequest;
+import com.staffora.hrms.employee.dto.EnableLoginResponse;
 import com.staffora.hrms.employee.dto.EmployeeResponse;
 import com.staffora.hrms.employee.dto.EmployeeUpdateRequest;
 import java.util.List;
@@ -30,6 +31,12 @@ public class EmployeeController {
         return employeeService.getMyEmployees();
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public EmployeeResponse getMyProfile(Authentication authentication) {
+        return employeeService.getMyProfile(authentication);
+    }
+
     @PutMapping("/{employeeId}")
     @PreAuthorize("hasAnyRole('HR','COMPANY_ADMIN','SUPER_ADMIN')")
     public EmployeeResponse updateEmployee(@PathVariable Long employeeId,
@@ -37,11 +44,27 @@ public class EmployeeController {
         return employeeService.updateEmployee(employeeId, request);
     }
 
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public EmployeeResponse updateMyProfile(@RequestBody EmployeeUpdateRequest request,
+                                            Authentication authentication) {
+        return employeeService.updateMyProfile(request, authentication);
+    }
+
     @DeleteMapping("/{employeeId}")
     @PreAuthorize("hasRole('HR')")
     public void deleteEmployee(@PathVariable Long employeeId,
                                Authentication authentication) {
         employeeService.deleteEmployee(employeeId, authentication);
+    }
+
+    @PostMapping("/{employeeId}/enable-login")
+    @PreAuthorize("hasRole('HR')")
+    public EnableLoginResponse enableLogin(@PathVariable Long employeeId) {
+        String temporaryPassword = employeeService.enableLogin(employeeId);
+        return EnableLoginResponse.builder()
+                .temporaryPassword(temporaryPassword)
+                .build();
     }
 
     @GetMapping("/{employeeId}")

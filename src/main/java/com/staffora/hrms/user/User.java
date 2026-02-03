@@ -1,6 +1,7 @@
 package com.staffora.hrms.user;
 
 import com.staffora.hrms.company.Company;
+import com.staffora.hrms.employee.Employee;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,6 +30,10 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     @ManyToOne
     @JoinColumn(name = "company_id", nullable = false)
