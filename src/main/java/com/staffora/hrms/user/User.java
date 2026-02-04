@@ -31,6 +31,10 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Builder.Default
+    @Column(name = "first_login", nullable = false)
+    private boolean firstLogin = true;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
     private Employee employee;
