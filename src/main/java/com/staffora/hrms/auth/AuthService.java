@@ -10,6 +10,7 @@ import com.staffora.hrms.tenant.TenantContext;
 import com.staffora.hrms.user.Role;
 import com.staffora.hrms.user.User;
 import com.staffora.hrms.user.UserRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -90,5 +91,19 @@ public class AuthService {
                 user.getCompany().getId(),
                 user.getRole().name()
         );
+    }
+
+    public void changePassword(String currentPassword, String newPassword) {
+        Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFirstLogin(false);
+        userRepository.save(user);
     }
 }
