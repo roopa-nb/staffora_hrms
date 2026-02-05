@@ -1,6 +1,8 @@
 package com.staffora.hrms.attendance;
 
 import com.staffora.hrms.attendance.dto.AttendanceResponse;
+import com.staffora.hrms.company.Company;
+import com.staffora.hrms.company.CompanyRepository;
 import com.staffora.hrms.employee.Employee;
 import com.staffora.hrms.exception.BadRequestException;
 import com.staffora.hrms.exception.NotFoundException;
@@ -29,6 +31,14 @@ public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
+
+    public AttendanceService(AttendanceRepository attendanceRepository,
+                             UserRepository userRepository,
+                             CompanyRepository companyRepository) {
+        this.attendanceRepository = attendanceRepository;
+        this.userRepository = userRepository;
+        this.companyRepository = companyRepository;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
                              UserRepository userRepository) {
@@ -40,6 +50,13 @@ public class AttendanceService {
         Long companyId = requireCompanyId();
         User user = getAuthenticatedUser(companyId);
         Employee employee = requireEmployee(user);
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new NotFoundException("Company not found."));
+
+        String clientIp = request.getRemoteAddr();
+        String allowedIp = company.getOfficeIp();
+        System.out.println("Attendance IP check requestIp=" + clientIp + ", allowedIp=" + allowedIp);
+        if (allowedIp != null && !allowedIp.equals(clientIp)) {
 
         String clientIp = request.getRemoteAddr();
         if (!ALLOWED_IPS.contains(clientIp)) {
