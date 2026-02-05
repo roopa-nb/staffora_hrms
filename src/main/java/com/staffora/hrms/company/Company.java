@@ -21,4 +21,7 @@ public class Company {
 
     @Column(nullable = false)
     private String plan;
+
+    @Column(name = "office_ip", length = 50)
+    private String officeIp;
 }

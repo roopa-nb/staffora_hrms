@@ -1,6 +1,7 @@
 package com.staffora.hrms.auth;
 
 import com.staffora.hrms.auth.dto.AuthResponse;
+import com.staffora.hrms.auth.dto.ChangePasswordRequest;
 import com.staffora.hrms.auth.dto.CompanyRegisterRequest;
 import com.staffora.hrms.auth.dto.LoginRequest;
 import com.staffora.hrms.security.JwtUtil;
@@ -29,7 +30,9 @@ public class AuthController {
     @PostMapping("/register-company")
     public AuthResponse register(@RequestBody CompanyRegisterRequest request) {
         String token = authService.registerCompany(request);
-        return new AuthResponse(token, "HR", request.getCompanyName());
+        Long userId = jwtUtil.extractUserId(token);
+        User user = userRepository.findById(userId).orElseThrow();
+        return new AuthResponse(token, "HR", request.getCompanyName(), user.isFirstLogin());
     }
 
     // ✅ Login
@@ -44,7 +47,13 @@ public class AuthController {
         return new AuthResponse(
                 token,
                 user.getRole().name(),
-                user.getCompany().getCompanyName()
+                user.getCompany().getCompanyName(),
+                user.isFirstLogin()
         );
+    }
+
+    @PostMapping("/change-password")
+    public void changePassword(@RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request.getCurrentPassword(), request.getNewPassword());
     }
 }
