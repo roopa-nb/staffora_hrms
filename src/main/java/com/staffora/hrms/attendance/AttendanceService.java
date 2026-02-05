@@ -15,18 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.nio.file.*;
+import java.time.*;
 import java.util.List;
 
 @Service
 public class AttendanceService {
 
-    private static final List<String> ALLOWED_IPS = List.of("127.0.0.1");
     private static final String UPLOAD_DIR = "uploads/attendance";
 
     private final AttendanceRepository attendanceRepository;
@@ -39,31 +34,27 @@ public class AttendanceService {
         this.attendanceRepository = attendanceRepository;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
-
-    public AttendanceService(AttendanceRepository attendanceRepository,
-                             UserRepository userRepository) {
-        this.attendanceRepository = attendanceRepository;
-        this.userRepository = userRepository;
     }
 
     public AttendanceResponse markAttendance(MultipartFile photo, HttpServletRequest request) {
         Long companyId = requireCompanyId();
         User user = getAuthenticatedUser(companyId);
         Employee employee = requireEmployee(user);
+
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new NotFoundException("Company not found."));
 
         String clientIp = request.getRemoteAddr();
         String allowedIp = company.getOfficeIp();
-        System.out.println("Attendance IP check requestIp=" + clientIp + ", allowedIp=" + allowedIp);
-        if (allowedIp != null && !allowedIp.equals(clientIp)) {
 
-        String clientIp = request.getRemoteAddr();
-        if (!ALLOWED_IPS.contains(clientIp)) {
+        System.out.println("Attendance IP check requestIp=" + clientIp + ", allowedIp=" + allowedIp);
+
+        if (allowedIp != null && !allowedIp.equals(clientIp)) {
             throw new RuntimeException("Attendance allowed only from office network");
         }
 
         LocalDate today = LocalDate.now();
+
         Attendance attendance = attendanceRepository
                 .findByEmployeeIdAndDate(employee.getId(), today)
                 .orElseGet(() -> Attendance.builder()
@@ -84,15 +75,18 @@ public class AttendanceService {
             attendance.setCheckInTime(now);
             attendance.setPhotoCheckInUrl(photoUrl);
             attendance.setIpCheckIn(clientIp);
+
         } else if (attendance.getBreakStartTime() == null) {
             attendance.setBreakStartTime(now);
             attendance.setPhotoBreakStartUrl(photoUrl);
             attendance.setIpBreakStart(clientIp);
+
         } else if (attendance.getBreakEndTime() == null) {
             attendance.setBreakEndTime(now);
             attendance.setPhotoBreakEndUrl(photoUrl);
             attendance.setIpBreakEnd(clientIp);
-        } else if (attendance.getCheckOutTime() == null) {
+
+        } else {
             attendance.setCheckOutTime(now);
             attendance.setPhotoCheckOutUrl(photoUrl);
             attendance.setIpCheckOut(clientIp);
@@ -117,35 +111,46 @@ public class AttendanceService {
 
     public List<AttendanceResponse> getCompanyAttendance() {
         Long companyId = requireCompanyId();
-        return attendanceRepository.findByCompanyId(companyId).stream()
+        return attendanceRepository.findByCompanyId(companyId)
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     private void calculateTotals(Attendance attendance) {
-        if (attendance.getCheckInTime() == null || attendance.getCheckOutTime() == null) {
-            return;
-        }
-        long breakMinutes = 0L;
+        if (attendance.getCheckInTime() == null || attendance.getCheckOutTime() == null) return;
+
+        long breakMinutes = 0;
         if (attendance.getBreakStartTime() != null && attendance.getBreakEndTime() != null) {
-            breakMinutes = Duration.between(attendance.getBreakStartTime(), attendance.getBreakEndTime()).toMinutes();
+            breakMinutes = Duration.between(
+                    attendance.getBreakStartTime(),
+                    attendance.getBreakEndTime()
+            ).toMinutes();
         }
-        long totalMinutes = Duration.between(attendance.getCheckInTime(), attendance.getCheckOutTime()).toMinutes();
+
+        long totalMinutes = Duration.between(
+                attendance.getCheckInTime(),
+                attendance.getCheckOutTime()
+        ).toMinutes();
+
         attendance.setBreakMinutes(breakMinutes);
-        attendance.setWorkHours(Math.max(0L, totalMinutes - breakMinutes));
+        attendance.setWorkHours(Math.max(0, totalMinutes - breakMinutes));
     }
 
     private String storePhoto(Long employeeId, MultipartFile photo, LocalDateTime timestamp) {
         if (photo == null || photo.isEmpty()) {
             throw new BadRequestException("Photo is required.");
         }
-        String filename = employeeId + "_" + timestamp.toInstant(java.time.ZoneOffset.UTC).toEpochMilli() + ".jpg";
+
+        String filename = employeeId + "_" + timestamp.toEpochSecond(java.time.ZoneOffset.UTC) + ".jpg";
         Path uploadPath = Paths.get(UPLOAD_DIR);
+
         try {
             Files.createDirectories(uploadPath);
             Path targetPath = uploadPath.resolve(filename);
             photo.transferTo(targetPath);
             return "/uploads/attendance/" + filename;
+
         } catch (IOException e) {
             throw new RuntimeException("Failed to store attendance photo.");
         }
@@ -172,17 +177,16 @@ public class AttendanceService {
     }
 
     private Employee requireEmployee(User user) {
-        Employee employee = user.getEmployee();
-        if (employee == null) {
+        if (user.getEmployee() == null) {
             throw new BadRequestException("Employee profile not linked.");
         }
-        return employee;
+        return user.getEmployee();
     }
 
     private Long requireCompanyId() {
         Long companyId = TenantContext.getCompanyId();
         if (companyId == null) {
-            throw new IllegalStateException("Tenant context is missing.");
+            throw new IllegalStateException("Tenant context missing.");
         }
         return companyId;
     }
