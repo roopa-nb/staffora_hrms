@@ -15,6 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.nio.file.*;
 import java.time.*;
 import java.util.List;
@@ -46,6 +52,7 @@ public class AttendanceService {
 
         String clientIp = request.getRemoteAddr();
         String allowedIp = company.getOfficeIp();
+        System.out.println("Attendance IP check requestIp=" + clientIp + ", allowedIp=" + allowedIp);
 
         System.out.println("Attendance IP check requestIp=" + clientIp + ", allowedIp=" + allowedIp);
 
@@ -85,6 +92,7 @@ public class AttendanceService {
             attendance.setBreakEndTime(now);
             attendance.setPhotoBreakEndUrl(photoUrl);
             attendance.setIpBreakEnd(clientIp);
+        } else if (attendance.getCheckOutTime() == null) {
 
         } else {
             attendance.setCheckOutTime(now);
@@ -111,6 +119,7 @@ public class AttendanceService {
 
     public List<AttendanceResponse> getCompanyAttendance() {
         Long companyId = requireCompanyId();
+        return attendanceRepository.findByCompanyId(companyId).stream()
         return attendanceRepository.findByCompanyId(companyId)
                 .stream()
                 .map(this::toResponse)
@@ -118,6 +127,16 @@ public class AttendanceService {
     }
 
     private void calculateTotals(Attendance attendance) {
+        if (attendance.getCheckInTime() == null || attendance.getCheckOutTime() == null) {
+            return;
+        }
+        long breakMinutes = 0L;
+        if (attendance.getBreakStartTime() != null && attendance.getBreakEndTime() != null) {
+            breakMinutes = Duration.between(attendance.getBreakStartTime(), attendance.getBreakEndTime()).toMinutes();
+        }
+        long totalMinutes = Duration.between(attendance.getCheckInTime(), attendance.getCheckOutTime()).toMinutes();
+        attendance.setBreakMinutes(breakMinutes);
+        attendance.setWorkHours(Math.max(0L, totalMinutes - breakMinutes));
         if (attendance.getCheckInTime() == null || attendance.getCheckOutTime() == null) return;
 
         long breakMinutes = 0;
@@ -141,6 +160,8 @@ public class AttendanceService {
         if (photo == null || photo.isEmpty()) {
             throw new BadRequestException("Photo is required.");
         }
+        String filename = employeeId + "_" + timestamp.toInstant(java.time.ZoneOffset.UTC).toEpochMilli() + ".jpg";
+        Path uploadPath = Paths.get(UPLOAD_DIR);
 
         String filename = employeeId + "_" + timestamp.toEpochSecond(java.time.ZoneOffset.UTC) + ".jpg";
         Path uploadPath = Paths.get(UPLOAD_DIR);
@@ -177,6 +198,11 @@ public class AttendanceService {
     }
 
     private Employee requireEmployee(User user) {
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new BadRequestException("Employee profile not linked.");
+        }
+        return employee;
         if (user.getEmployee() == null) {
             throw new BadRequestException("Employee profile not linked.");
         }
@@ -186,6 +212,7 @@ public class AttendanceService {
     private Long requireCompanyId() {
         Long companyId = TenantContext.getCompanyId();
         if (companyId == null) {
+            throw new IllegalStateException("Tenant context is missing.");
             throw new IllegalStateException("Tenant context missing.");
         }
         return companyId;

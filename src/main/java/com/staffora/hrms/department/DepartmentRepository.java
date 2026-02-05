@@ -10,4 +10,6 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     List<Department> findByCompany(Company company);
 
     Optional<Department> findByIdAndCompanyId(Long id, Long companyId);
+
+    long countByCompanyId(Long companyId);
 }
