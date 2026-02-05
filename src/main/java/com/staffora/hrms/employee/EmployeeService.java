@@ -136,7 +136,7 @@ public class EmployeeService {
         Employee employee = user.getEmployee();
         if (employee == null) {
             throw new NotFoundException("Employee profile not found.");
-            throw new IllegalStateException("Employee profile not found.");
+//            throw new IllegalStateException("Employee profile not found.");
         }
         return toResponse(employee);
     }
