@@ -7,10 +7,12 @@ import com.staffora.hrms.department.DepartmentRepository;
 import com.staffora.hrms.employee.dto.EmployeeRequest;
 import com.staffora.hrms.employee.dto.EmployeeResponse;
 import com.staffora.hrms.employee.dto.EmployeeUpdateRequest;
+import com.staffora.hrms.exception.NotFoundException;
 import com.staffora.hrms.tenant.TenantContext;
 import com.staffora.hrms.user.Role;
 import com.staffora.hrms.user.User;
 import com.staffora.hrms.user.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -126,10 +128,14 @@ public class EmployeeService {
 
     public EmployeeResponse getMyProfile(Authentication authentication) {
         Long companyId = requireCompanyId();
+        if (!hasAnyRole(authentication, Role.EMPLOYEE)) {
+            throw new AccessDeniedException("Access denied.");
+        }
         User user = userRepository.findByIdAndCompanyId((Long) authentication.getPrincipal(), companyId)
                 .orElseThrow(() -> new IllegalStateException("User not found."));
         Employee employee = user.getEmployee();
         if (employee == null) {
+            throw new NotFoundException("Employee profile not found.");
             throw new IllegalStateException("Employee profile not found.");
         }
         return toResponse(employee);
