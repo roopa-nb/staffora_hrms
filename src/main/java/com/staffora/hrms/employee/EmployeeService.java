@@ -20,6 +20,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class EmployeeService {
@@ -35,6 +38,7 @@ public class EmployeeService {
                            DepartmentRepository departmentRepository,
                            UserRepository userRepository,
                            PasswordEncoder passwordEncoder) {
+                           UserRepository userRepository) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
@@ -80,6 +84,7 @@ public class EmployeeService {
 
         if (request.getEmail() != null) {
             updateEmployeeEmail(employee, request.getEmail(), companyId);
+            employee.setEmail(request.getEmail());
         }
 
         if (request.getPhone() != null) {
@@ -136,6 +141,7 @@ public class EmployeeService {
         Employee employee = user.getEmployee();
         if (employee == null) {
             throw new NotFoundException("Employee profile not found.");
+            throw new IllegalStateException("Employee profile not found.");
         }
         return toResponse(employee);
     }
