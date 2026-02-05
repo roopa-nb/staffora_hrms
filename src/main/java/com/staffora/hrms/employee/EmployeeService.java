@@ -18,9 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class EmployeeService {
@@ -36,7 +33,6 @@ public class EmployeeService {
                            DepartmentRepository departmentRepository,
                            UserRepository userRepository,
                            PasswordEncoder passwordEncoder) {
-                           UserRepository userRepository) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
@@ -82,7 +78,6 @@ public class EmployeeService {
 
         if (request.getEmail() != null) {
             updateEmployeeEmail(employee, request.getEmail(), companyId);
-            employee.setEmail(request.getEmail());
         }
 
         if (request.getPhone() != null) {
@@ -196,6 +191,7 @@ public class EmployeeService {
         }
 
         String temporaryPassword = generateTemporaryPassword();
+        System.out.println("TEMP PASSWORD (RAW) = [" + temporaryPassword + "]");
 
         User user = User.builder()
                 .email(employee.getEmail())
@@ -205,6 +201,7 @@ public class EmployeeService {
                 .company(employee.getCompany())
                 .employee(employee)
                 .build();
+
 
         userRepository.save(user);
         employee.setUser(user);
