@@ -136,6 +136,7 @@ public class EmployeeService {
         Employee employee = user.getEmployee();
         if (employee == null) {
             throw new NotFoundException("Employee profile not found.");
+//            throw new IllegalStateException("Employee profile not found.");
         }
         return toResponse(employee);
     }
@@ -196,6 +197,7 @@ public class EmployeeService {
         }
 
         String temporaryPassword = generateTemporaryPassword();
+        System.out.println("TEMP PASSWORD (RAW) = [" + temporaryPassword + "]");
 
         User user = User.builder()
                 .email(employee.getEmail())
@@ -205,6 +207,7 @@ public class EmployeeService {
                 .company(employee.getCompany())
                 .employee(employee)
                 .build();
+
 
         userRepository.save(user);
         employee.setUser(user);
@@ -272,3 +275,4 @@ public class EmployeeService {
         return companyId;
     }
 }
+
