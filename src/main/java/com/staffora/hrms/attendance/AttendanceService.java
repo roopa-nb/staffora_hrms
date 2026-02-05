@@ -26,6 +26,7 @@ import java.util.List;
 @Service
 public class AttendanceService {
 
+    private static final List<String> ALLOWED_IPS = List.of("127.0.0.1");
     private static final String UPLOAD_DIR = "uploads/attendance";
 
     private final AttendanceRepository attendanceRepository;
@@ -38,6 +39,11 @@ public class AttendanceService {
         this.attendanceRepository = attendanceRepository;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
+
+    public AttendanceService(AttendanceRepository attendanceRepository,
+                             UserRepository userRepository) {
+        this.attendanceRepository = attendanceRepository;
+        this.userRepository = userRepository;
     }
 
     public AttendanceResponse markAttendance(MultipartFile photo, HttpServletRequest request) {
@@ -51,6 +57,9 @@ public class AttendanceService {
         String allowedIp = company.getOfficeIp();
         System.out.println("Attendance IP check requestIp=" + clientIp + ", allowedIp=" + allowedIp);
         if (allowedIp != null && !allowedIp.equals(clientIp)) {
+
+        String clientIp = request.getRemoteAddr();
+        if (!ALLOWED_IPS.contains(clientIp)) {
             throw new RuntimeException("Attendance allowed only from office network");
         }
 
